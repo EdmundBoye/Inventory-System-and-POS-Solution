@@ -1,0 +1,317 @@
+{% extends 'inventory/base.html' %}
+{% load static %}
+{% block title %}POS — {{ store.name }}{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+
+<style>
+  .pos-wrapper {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 24px;
+      margin-top: 20px;
+  }
+  .pos-card {
+      background: white;
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+  }
+  .cart-table th, .cart-table td { padding: 10px; vertical-align: middle; }
+  .cart-table th { background: #f7f7f7; }
+  .cart-qty-btn { padding: 4px 8px; font-size: 14px; }
+  #paymentModal .modal-content { border-radius: 14px; }
+  .small-muted { font-size: .9rem; color: #6b7280; }
+</style>
+
+<div class="pos-card d-flex justify-content-between align-items-center">
+  <div>
+    <h2 class="mb-0">POS ({{ store.name }})</h2>
+    <div class="small-muted">Scan barcode or type product name then press Add</div>
+  </div>
+  <div class="text-end">
+    <div class="small-muted">TOTAL</div>
+    <h3 id="displayTotal" class="mb-0">0.00</h3>
+  </div>
+</div>
+
+<div class="pos-card d-flex gap-3 align-items-center">
+  <input id="barcode" class="form-control" placeholder="Scan barcode or type product name..." autocomplete="off" />
+  <button id="btnAdd" class="btn btn-primary">
+    <i class="bi bi-plus-circle"></i> Add
+  </button>
+
+  <button id="openPayment" class="btn btn-success ms-auto">
+    <i class="bi bi-cash-stack"></i> Checkout
+  </button>
+</div>
+
+<div class="pos-wrapper">
+
+  <div class="pos-card">
+    <h4>Cart</h4>
+    <table class="table cart-table">
+      <thead>
+        <tr>
+          <th>Product</th>
+          <th style="width:90px">Qty</th>
+          <th style="width:120px">Price</th>
+          <th style="width:60px"></th>
+        </tr>
+      </thead>
+      <tbody id="cartBody"></tbody>
+    </table>
+  </div>
+
+  <div class="pos-card">
+    <h4>Summary</h4>
+    <hr />
+    <div class="d-flex justify-content-between fs-6">
+      <span>Total Items</span>
+      <strong id="itemCount">0</strong>
+    </div>
+
+    <div class="d-flex justify-content-between fs-6 mt-2">
+      <span>Grand Total</span>
+      <strong id="summaryTotal">0.00</strong>
+    </div>
+
+    <hr />
+
+    <button id="clearCart" class="btn btn-outline-danger w-100">Clear Cart</button>
+    <button id="openPayment2" class="btn btn-success w-100 mt-2">Checkout</button>
+  </div>
+</div>
+
+<!-- PAYMENT MODAL -->
+<div class="modal fade" id="paymentModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Complete Payment</h5>
+        <button class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <label class="form-label">Payment Method</label>
+        <select id="payment" class="form-select">
+          <option value="cash">Cash</option>
+          <option value="card">Card</option>
+          <option value="mobile">Mobile Money</option>
+        </select>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button id="checkout" class="btn btn-success">Confirm Payment</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  // Template-provided values
+  const STORE_ID = {{ store.id }};
+  const LOOKUP_URL = "{% url 'inventory:lookup_barcode' %}";
+  const CREATE_SALE_URL = "{% url 'inventory:create_sale' %}";
+
+  // CSRF token - prefer global; fallback to cookie
+  const csrftoken = window.csrftoken || (function() {
+    const match = document.cookie.match(/(^|;)\\s*csrftoken=([^;]+)/);
+    return match ? decodeURIComponent(match[2]) : "";
+  })();
+
+  // Elements
+  const barcodeEl = document.getElementById("barcode");
+  const btnAdd = document.getElementById("btnAdd");
+  const btnCheckout = document.getElementById("checkout");
+  const cartBody = document.getElementById("cartBody");
+  const displayTotal = document.getElementById("displayTotal");
+  const summaryTotal = document.getElementById("summaryTotal");
+  const itemCount = document.getElementById("itemCount");
+  const clearCartBtn = document.getElementById("clearCart");
+  const paymentModalEl = document.getElementById("paymentModal");
+  const paymentModal = new bootstrap.Modal(paymentModalEl);
+
+  // Cart state
+  let cart = [];
+
+  // Render cart
+  function renderCart() {
+    cartBody.innerHTML = "";
+    let total = 0;
+    let items = 0;
+
+    cart.forEach((it, idx) => {
+      total += it.qty * parseFloat(it.price);
+      items += it.qty;
+
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td><strong>${escapeHtml(it.name)}</strong><br><small class="text-muted">${escapeHtml(it.sku)}</small></td>
+        <td>
+          <div class="btn-group" role="group">
+            <button class="btn btn-light cart-qty-btn dec" data-idx="${idx}">-</button>
+            <span class="px-2">${it.qty}</span>
+            <button class="btn btn-light cart-qty-btn inc" data-idx="${idx}">+</button>
+          </div>
+        </td>
+        <td>${parseFloat(it.price).toFixed(2)}</td>
+        <td>
+          <button class="btn btn-danger btn-sm rm" data-idx="${idx}"><i class="bi bi-trash"></i></button>
+        </td>
+      `;
+      cartBody.appendChild(tr);
+    });
+
+    displayTotal.innerText = total.toFixed(2);
+    summaryTotal.innerText = total.toFixed(2);
+    itemCount.innerText = items;
+
+    // attach events
+    cartBody.querySelectorAll(".inc").forEach(b => {
+      b.addEventListener("click", () => {
+        const i = +b.dataset.idx;
+        cart[i].qty++;
+        renderCart();
+      });
+    });
+    cartBody.querySelectorAll(".dec").forEach(b => {
+      b.addEventListener("click", () => {
+        const i = +b.dataset.idx;
+        if (cart[i].qty > 1) cart[i].qty--;
+        else cart.splice(i, 1);
+        renderCart();
+      });
+    });
+    cartBody.querySelectorAll(".rm").forEach(b => {
+      b.addEventListener("click", () => {
+        const i = +b.dataset.idx;
+        cart.splice(i, 1);
+        renderCart();
+      });
+    });
+  }
+
+  // Helper to escape HTML
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, function(m) {
+      return ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m];
+    });
+  }
+
+  // Lookup product by barcode or name (POST JSON)
+  async function lookupBarcode(query) {
+    try {
+      const res = await fetch(LOOKUP_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": csrftoken
+        },
+        body: JSON.stringify({ barcode: query, store_id: STORE_ID })
+      });
+
+      // parse JSON even on error so we can show message
+      const data = await res.json();
+      if (!res.ok) return { error: data.error || "Lookup failed" };
+      return data;
+    } catch (err) {
+      return { error: "Network error" };
+    }
+  }
+
+  // Add button behavior (also allow Enter key)
+  async function addCurrentBarcode() {
+    const q = barcodeEl.value.trim();
+    if (!q) return;
+
+    btnAdd.disabled = true;
+    btnAdd.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Adding';
+
+    const p = await lookupBarcode(q);
+    btnAdd.disabled = false;
+    btnAdd.innerHTML = '<i class="bi bi-plus-circle"></i> Add';
+
+    if (p.error) {
+      alert(p.error);
+      return;
+    }
+
+    const idx = cart.findIndex(i => i.product_id === p.product_id);
+    if (idx >= 0) cart[idx].qty++;
+    else cart.push({ product_id: p.product_id, name: p.name, sku: p.sku, price: p.price, qty: 1 });
+
+    barcodeEl.value = "";
+    renderCart();
+    barcodeEl.focus();
+  }
+
+  btnAdd.addEventListener("click", addCurrentBarcode);
+  barcodeEl.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      addCurrentBarcode();
+    }
+  });
+
+  // Checkout / create sale
+  btnCheckout.addEventListener("click", async () => {
+    if (cart.length === 0) { alert("Cart is empty"); return; }
+
+    btnCheckout.disabled = true;
+    btnCheckout.innerText = "Processing...";
+
+    const payment_method = document.getElementById("payment").value;
+    const payload = {
+      store_id: STORE_ID,
+      items: cart.map(i => ({ product_id: i.product_id, quantity: i.qty })),
+      payment_method: payment_method
+    };
+
+    try {
+      const res = await fetch(CREATE_SALE_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRFToken": csrftoken
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.error || "Sale failed");
+        btnCheckout.disabled = false;
+        btnCheckout.innerText = "Confirm Payment";
+        return;
+      }
+
+      // redirect to receipt
+      if (data.receipt_url) window.location.href = data.receipt_url;
+      else window.location.reload();
+    } catch (err) {
+      alert("Network error performing sale");
+      btnCheckout.disabled = false;
+      btnCheckout.innerText = "Confirm Payment";
+    }
+  });
+
+  // Open modal buttons
+  document.getElementById("openPayment").addEventListener("click", () => paymentModal.show());
+  document.getElementById("openPayment2").addEventListener("click", () => paymentModal.show());
+
+  // Clear cart
+  clearCartBtn.addEventListener("click", () => { cart = []; renderCart(); });
+
+  // initial render
+  renderCart();
+});
+</script>
+{% endblock %}

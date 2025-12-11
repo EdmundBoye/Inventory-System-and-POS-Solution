@@ -1,0 +1,26 @@
+{% extends 'inventory/base.html' %}
+{% block title %}Stock Take — {{ store.name }}{% endblock %}
+{% block content %}
+<div class="card">
+  <h2>Stock Take — {{ store.name }}</h2>
+  <div class="text-muted small">Enter counted quantities for each item</div>
+
+  <form method="POST" id="stockForm">
+    {% csrf_token %}
+    <input type="hidden" name="store_id" value="{{ store.id }}">
+    <table class="table">
+      <thead><tr><th>Item</th><th>Current Qty</th><th>Counted</th></tr></thead>
+      <tbody>
+        {% for inv in inventory %}
+          <tr>
+            <td>{{ inv.product.name }}</td>
+            <td>{{ inv.quantity }}</td>
+            <td><input name="count_{{ inv.id }}" class="input-inline" value="{{ inv.quantity }}"></td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <button class="btn btn-primary">Save Stock Take</button>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Barcode — {{ product.name }}</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 30px;
+      }
+      .label {
+        border: 1px dashed #333;
+        padding: 18px;
+        width: 320px;
+        text-align: center;
+      }
+      .sku {
+        font-weight: 700;
+        margin-bottom: 6px;
+      }
+      .prod {
+        font-size: 18px;
+        margin-bottom: 6px;
+      }
+      .barcode {
+        font-size: 20px;
+        letter-spacing: 3px;
+        margin-top: 8px;
+      }
+      @media print {
+        .noprint {
+          display: none;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="label">
+      <div class="sku">SKU: {{ product.sku }}</div>
+      <div class="prod">{{ product.name }}</div>
+      <div class="barcode">{{ product.barcode }}</div>
+      <div style="margin-top: 10px">{{ product.description|default:"" }}</div>
+    </div>
+
+    <div style="margin-top: 20px">
+      <button onclick="window.print()">Print</button>
+      <a href="{% url 'inventory:product_list' 1 %}" class="noprint">Back</a>
+    </div>
+  </body>
+</html>

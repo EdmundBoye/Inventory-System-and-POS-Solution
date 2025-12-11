@@ -1,0 +1,191 @@
+{% extends 'inventory/base.html' %}
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+
+<!-- LOAD CHART.JS -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+    .dashboard-card {
+        background: #fff;
+        border-radius: 12px;
+        border: 1px solid #eee;
+        transition: 0.2s;
+    }
+    .dashboard-card:hover {
+        box-shadow: 0 4px 16px rgba(0,0,0,0.08);
+        transform: translateY(-3px);
+    }
+
+    .welcome-card {
+        border-radius: 14px;
+        border: 1px solid #e5e7eb;
+        background: #ffffff;
+    }
+
+    .manage-store-btn {
+        background: linear-gradient(90deg, #2563eb, #1d4ed8);
+        color: white !important;
+        border-radius: 10px;
+        padding: 10px 18px;
+        font-weight: 600;
+        display: inline-block;
+        transition: 0.25s ease-in-out;
+        box-shadow: 0 3px 10px rgba(37, 99, 235, 0.2);
+        text-decoration: none;
+    }
+    .manage-store-btn:hover {
+        background: linear-gradient(90deg, #1e40af, #1e3a8a);
+        transform: translateY(-2px);
+        box-shadow: 0 6px 16px rgba(37, 99, 235, 0.3);
+        text-decoration: none;
+    }
+</style>
+
+<div class="container mt-4">
+
+    <!-- WELCOME CARD -->
+    <div class="card welcome-card shadow-sm p-4 mb-4">
+        <h2 class="fw-bold mb-1">Welcome, {{ user.username }} 👋</h2>
+        <p class="text-muted">Here's your business overview</p>
+
+        {% if role == "owner" %}
+            <a href="{% url 'inventory:store_list' %}" class="manage-store-btn mt-3">
+                ⚙ Manage Stores
+            </a>
+        {% endif %}
+    </div>
+
+    {% if role == "owner" %}
+<!-- FLEX SUMMARY → GRAPH -->
+<div class="row g-3 mb-4 align-items-stretch">
+
+    <!-- GRAPH (LEFT SIDE) -->
+    <div class="col-lg-8 col-md-12">
+        <div class="card shadow-sm p-4 h-100">
+            <h4 class="fw-bold mb-3">Earnings Overview</h4>
+            <canvas id="earningsChart" style="height: 320px;"></canvas>
+        </div>
+    </div>
+
+    <!-- SUMMARY CARDS (RIGHT SIDE) -->
+    <div class="col-lg-4 col-md-12">
+        <div class="d-flex flex-column gap-3 h-100">
+
+            <div class="dashboard-card text-center p-3 shadow-sm flex-fill">
+                <h6 class="text-muted mb-1">TOTAL EARNINGS</h6>
+                <h2 class="fw-bold text-primary">${{ total_earnings|floatformat:2 }}</h2>
+            </div>
+
+            <div class="dashboard-card text-center p-3 shadow-sm flex-fill">
+                <h6 class="text-muted mb-1">NUMBER OF STORES</h6>
+                <h2 class="fw-bold text-primary">{{ stores.count }}</h2>
+            </div>
+
+            <div class="dashboard-card text-center p-3 shadow-sm flex-fill">
+                <h6 class="text-muted mb-1">TOTAL USERS</h6>
+                <h2 class="fw-bold text-primary">{{ user_count }}</h2>
+            </div>
+
+            <div class="dashboard-card text-center p-3 shadow-sm flex-fill">
+                <h6 class="text-muted mb-1">AVG. EARNING PER STORE</h6>
+                <h2 class="fw-bold text-primary">${{ avg_per_store|floatformat:2 }}</h2>
+            </div>
+
+        </div>
+    </div>
+
+</div>
+    {% endif %}
+
+    <!-- TABLE: EARNINGS PER STORE -->
+    {% if role == "owner" or role == "manager" %}
+    <div class="card shadow-sm p-4 mb-4">
+        <h4 class="fw-bold mb-3">Earnings Per Store</h4>
+
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>Store</th>
+                    <th class="text-end">Earnings ($)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in store_earnings %}
+                <tr>
+                    <td>{{ item.store__name }}</td>
+                    <td class="text-end fw-semibold text-primary">
+                        ${{ item.earnings|floatformat:2 }}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    <!-- STORE CARDS -->
+    {% if role == "owner" or role == "manager" %}
+    <div class="card shadow-sm p-4">
+        <h4 class="fw-bold">Your Stores</h4>
+        <p class="text-muted mb-4">Select a store to manage inventory or launch POS.</p>
+
+        <div class="row g-3">
+            {% for store in stores %}
+            <div class="col-md-4">
+                <a href="{% url 'inventory:product_list' store.id %}" class="text-decoration-none">
+                    <div class="p-4 border rounded bg-white text-center store-card-hover shadow-sm">
+                        <h3 class="fw-bold text-primary mb-0">{{ store.name }}</h3>
+                    </div>
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+
+<!-- CHART.JS SCRIPT -->
+<script>
+    const labels = [
+        {% for item in store_earnings %}
+            "{{ item.store__name }}",
+        {% endfor %}
+    ];
+
+    const data = [
+        {% for item in store_earnings %}
+            {{ item.earnings }},
+        {% endfor %}
+    ];
+
+    const ctx = document.getElementById('earningsChart').getContext('2d');
+
+    new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Earnings ($)',
+                data: data,
+                borderWidth: 1,
+                backgroundColor: 'rgba(37, 99, 235, 0.4)',
+                borderColor: 'rgba(37, 99, 235, 1)',
+                borderRadius: 6,
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { display: false }
+            },
+            scales: {
+                y: { beginAtZero: true }
+            }
+        }
+    });
+</script>
+
+{% endblock %}

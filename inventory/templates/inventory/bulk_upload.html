@@ -1,0 +1,30 @@
+{% extends 'inventory/base.html' %} {% block title %}Bulk Upload — {{ store.name
+}}{% endblock %} {% block content %}
+<div class="card">
+  <h3>Bulk Upload Products (CSV)</h3>
+  <p class="text-muted">
+    CSV columns: name, barcode, price, quantity, description (headers optional,
+    flexible).
+  </p>
+
+  <form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    <div class="mb-3">{{ form.csv_file.label_tag }} {{ form.csv_file }}</div>
+
+    {% if form.stores %}
+    <div class="mb-3">
+      {{ form.stores.label_tag }} {{ form.stores }}
+      <small class="form-text text-muted"
+        >Optional: choose stores to apply upload to. If left blank, will use
+        current store.</small
+      >
+    </div>
+    {% endif %}
+
+    <button class="btn btn-primary">Upload</button>
+    <a href="{% url 'inventory:product_list' store.id %}" class="btn btn-outline-secondary"
+      >Cancel</a
+    >
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,235 @@
+{% extends "inventory/base.html" %}
+{% load static %}
+
+{% block content %}
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+
+<div class="container mt-4">
+    <h2 class="mb-4">Users</h2>
+
+    <a href="{% url 'inventory:users_create_page' %}" class="btn btn-primary mb-3">
+        Create New User
+    </a>
+
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Username</th>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Stores</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+
+        <tbody>
+        {% for user in users %}
+        <tr>
+            <td>{{ forloop.counter }}</td>
+            <td>{{ user.username }}</td>
+            <td>{{ user.email }}</td>
+
+            <!-- ROLE -->
+            <td>
+                {% if user.profile %}
+                    {{ user.profile.role|capfirst }}
+                {% else %}
+                    <span class="text-muted">No role</span>
+                {% endif %}
+            </td>
+
+            <!-- STORES -->
+            <td>
+                {% if user.profile and user.profile.stores.all %}
+                    {% for store in user.profile.stores.all %}
+                        <span class="badge bg-info">{{ store.name }}</span>
+                    {% empty %}
+                        <span class="text-muted">No stores assigned</span>
+                    {% endfor %}
+                {% else %}
+                    <span class="text-muted">No stores assigned</span>
+                {% endif %}
+            </td>
+
+            <!-- ACTION BUTTONS -->
+            <td>
+                <button class="btn btn-outline-primary btn-sm me-2 d-inline-flex align-items-center edit-btn"
+                        data-id="{{ user.id }}"
+                        data-username="{{ user.username }}"
+                        data-email="{{ user.email }}"
+                        data-role="{{ user.profile.role }}"
+                        data-stores="{{ user.profile.stores.all|join:',' }}">
+                    Edit
+                </button>
+
+                <button class="btn btn-outline-danger btn-sm d-inline-flex align-items-center delete-user-btn"
+                        data-id="{{ user.id }}"
+                        data-username="{{ user.username }}">
+                    Delete
+                </button>
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+
+    </table>
+</div>
+
+<!--EDIT MODAL-->
+<div class="modal fade" id="editUserModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form id="editUserForm" method="POST">
+        {% csrf_token %}
+        <div class="modal-header">
+          <h5 class="modal-title">Edit User</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+
+        <div class="modal-body">
+
+          <input type="hidden" name="user_id" id="edit_user_id">
+
+          <div class="mb-3">
+            <label>Username</label>
+            <input id="edit_username" name="username" class="form-control">
+          </div>
+
+          <div class="mb-3">
+            <label>Email</label>
+            <input id="edit_email" name="email" class="form-control">
+          </div>
+
+          <div class="mb-3">
+            <label>Role</label>
+            <select id="edit_role" name="role" class="form-control">
+              <option value="Owner">Owner</option>
+              <option value="manager">Manager</option>
+              <option value="cashier">Cashier</option>
+            </select>
+          </div>
+
+          <div class="mb-3">
+            <label>Stores</label>
+            <select id="edit_stores" name="stores" class="form-control" multiple>
+              {% for store in stores %}
+              <option value="{{ store.id }}">{{ store.name }}</option>
+              {% endfor %}
+            </select>
+            <div class="form-text">
+        Hold <strong>CTRL</strong> (Windows) or <strong>CMD</strong> (Mac) to select multiple stores.
+    </div>
+          </div>
+
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button class="btn btn-primary">Save Changes</button>
+        </div>
+
+      </form>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+
+    // EDIT USER (LOAD MODAL)
+    document.querySelectorAll(".edit-btn").forEach(btn => {
+        btn.addEventListener("click", function () {
+
+            document.getElementById("edit_user_id").value = this.dataset.id;
+            document.getElementById("edit_username").value = this.dataset.username;
+            document.getElementById("edit_email").value = this.dataset.email;
+            document.getElementById("edit_role").value = this.dataset.role;
+
+            // Load stores
+            const storeList = this.dataset.stores.split(",");
+            const storeSelect = document.getElementById("edit_stores");
+
+            for (let option of storeSelect.options) {
+                option.selected = storeList.includes(option.text);
+            }
+
+            // Set form action dynamically
+            document.getElementById("editUserForm").action =
+    `/inventory/owner/users/edit/${this.dataset.id}/`;
+
+
+            new bootstrap.Modal(document.getElementById("editUserModal")).show();
+        });
+    });
+
+});
+
+document.addEventListener("DOMContentLoaded", () => {
+
+    document.querySelectorAll(".delete-user-btn").forEach(button => {
+        button.addEventListener("click", function () {
+            let userId = this.getAttribute("data-id");
+
+            Swal.fire({
+                title: "Delete User?",
+                text: "This action cannot be undone.",
+                icon: "warning",
+                showCancelButton: true,
+                confirmButtonText: "Yes, delete",
+                cancelButtonText: "Cancel"
+            }).then((result) => {
+
+                if (result.isConfirmed) {
+
+                    fetch(`/inventory/owner/users/delete/${userId}/`, {
+                        method: "POST",
+                        headers: {
+                            "X-CSRFToken": getCookie("csrftoken")
+                        }
+                    })
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error("Delete failed");
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        Swal.fire("Deleted!", data.message, "success")
+                            .then(() => {
+                                window.location.reload();
+                            });
+                    })
+                    .catch(error => {
+                        Swal.fire("Error", "Could not delete user.", "error");
+                    });
+                }
+
+            });
+        });
+    });
+
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== "") {
+            let cookies = document.cookie.split(";");
+            for (let cookie of cookies) {
+                cookie = cookie.trim();
+                if (cookie.startsWith(name + "=")) {
+                    cookieValue = cookie.substring(name.length + 1);
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+});
+
+
+</script>
+
+{% endblock %}

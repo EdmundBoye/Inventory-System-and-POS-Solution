@@ -1,0 +1,73 @@
+{% extends 'inventory/base.html' %} {% block title %}Edit Product — {{
+product.name }}{% endblock %} {% block content %}
+<div class="card">
+  <h3>Edit Product — {{ product.name }} ({{ store.name }})</h3>
+
+  <form method="post">
+    {% csrf_token %}
+    <div class="mb-3">{{ pform.name.label_tag }} {{ pform.name }}</div>
+    <div class="mb-3">{{ pform.barcode.label_tag }} {{ pform.barcode }}</div>
+    <div class="mb-3">
+      {{ pform.description.label_tag }} {{ pform.description }}
+    </div>
+
+    <h5>Inventory ({{ store.name }})</h5>
+    <div class="row">
+      <div class="col-md-6 mb-3">
+        {{ iform.price.label_tag }} {{ iform.price }}
+      </div>
+      <div class="col-md-6 mb-3">
+        {{ iform.quantity.label_tag }} {{ iform.quantity }}
+      </div>
+    </div>
+
+    <button class="btn btn-primary">Save</button>
+    <a href="{% url 'inventory:product_list' store.id %}" class="btn btn-outline-secondary"
+      >Cancel</a
+    >
+    <button
+      type="button"
+      class="btn btn-danger float-end"
+      data-bs-toggle="modal"
+      data-bs-target="#deleteModal"
+    >
+      Delete Product
+    </button>
+  </form>
+  <!-- Delete Confirmation Modal -->
+  <div class="modal fade" id="deleteModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Delete Product</h5>
+          <button
+            type="button"
+            class="btn-close"
+            data-bs-dismiss="modal"
+          ></button>
+        </div>
+
+        <div class="modal-body">
+          Are you sure you want to remove
+          <strong>{{ product.name }}</strong>
+          from <strong>{{ store.name }}</strong>?
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn btn-secondary" data-bs-dismiss="modal">
+            Cancel
+          </button>
+
+          <form
+            method="post"
+            action="{% url 'inventory:product_delete' store.id product.id %}"
+          >
+            {% csrf_token %}
+            <button type="submit" class="btn btn-danger">Yes, Remove</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

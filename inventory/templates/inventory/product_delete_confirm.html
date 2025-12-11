@@ -1,0 +1,30 @@
+{% extends 'inventory/base.html' %} {% block title %}Delete Product{% endblock
+%} {% block content %}
+<div class="card">
+  <h3>Remove Product From {{ store.name }}</h3>
+
+  <p>
+    You are about to remove the product:
+    <br />
+    <strong>{{ product.name }}</strong><br />
+    SKU: <code>{{ product.sku }}</code><br />
+    Barcode: <code>{{ product.barcode }}</code>
+  </p>
+
+  <p class="text-danger">
+    This action will remove this product
+    <strong>only from {{ store.name }}</strong>. It will not delete the product
+    from other stores.
+  </p>
+
+  <form method="post">
+    {% csrf_token %}
+    <button class="btn btn-danger">Yes, Remove Product</button>
+    <a
+      class="btn btn-secondary"
+      href="{% url 'inventory:product_list' store.id %}"
+      >Cancel</a
+    >
+  </form>
+</div>
+{% endblock %}

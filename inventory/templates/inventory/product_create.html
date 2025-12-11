@@ -1,0 +1,48 @@
+{% extends 'inventory/base.html' %}
+{% block title %}Add Product — {{ store.name }}{% endblock %}
+{% block content %}
+<div class="card">
+  <h3>Add Product for {{ store.name }}</h3>
+  <form method="post">
+    {% csrf_token %}
+    <div class="mb-3">
+      {{ form.name.label_tag }} {{ form.name }}
+      {% if form.name.errors %}<div class="text-danger">{{ form.name.errors }}</div>{% endif %}
+    </div>
+    <div class="mb-3">
+      {{ form.barcode.label_tag }} {{ form.barcode }}
+      {% if form.barcode.errors %}<div class="text-danger">{{ form.barcode.errors }}</div>{% endif %}
+    </div>
+    <div class="mb-3">
+      {{ form.description.label_tag }} {{ form.description }}
+      {% if form.description.errors %}<div class="text-danger">{{ form.description.errors }}</div>{% endif %}
+    </div>
+
+    <div class="row">
+      <div class="col-md-4 mb-3">
+        {{ form.price.label_tag }} {{ form.price }}
+      </div>
+      <div class="col-md-4 mb-3">
+        {{ form.quantity.label_tag }} {{ form.quantity }}
+      </div>
+      <div class="col-md-4 mb-3">
+        {{ form.is_active.label_tag }} {{ form.is_active }}
+      </div>
+    </div>
+
+    {% if form.store_choices %}
+    <div class="mb-3">
+      <label>Apply product to stores (owners only)</label>
+      {{ form.store_choices }}
+      <small class="form-text text-muted">Select stores (optional). If left blank, product is added to current store only.</small>
+    </div>
+    {% endif %}
+
+    <button class="btn btn-primary">Create Product</button>
+    <a href="{% url 'inventory:product_list' store.id %}" class="btn btn-outline-secondary">
+  Cancel
+</a>
+
+  </form>
+</div>
+{% endblock %}

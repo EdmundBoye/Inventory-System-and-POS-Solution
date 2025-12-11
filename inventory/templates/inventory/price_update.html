@@ -1,0 +1,140 @@
+{% extends "inventory/base.html" %}
+{% load static %}
+
+{% block title %}Bulk Price Update{% endblock %}
+
+{% block content %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+
+<div class="card p-4" style="max-width:900px; margin:auto;">
+    <h3 class="mb-2">Bulk Price Update</h3>
+    <p class="text-muted mb-3">
+        Upload a CSV file to update product prices across stores. Only owners can perform this action.
+    </p>
+
+    <div class="alert alert-light">
+        <strong>CSV format</strong>: CSV must include <code>price</code> and either <code>sku</code> or <code>barcode</code> columns.<br>
+        Example rows:<br>
+        <code>sku,price</code><br>
+        <code>SKU-7F92A3C1,9.50</code>
+    </div>
+
+    <form id="priceForm" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div class="mb-3">
+            <input id="fileInput" type="file" name="file" accept=".csv" class="form-control" required>
+        </div>
+
+        <div class="d-flex gap-2">
+            <button id="uploadBtn" class="btn btn-primary">Upload & Update</button>
+            <button id="downloadSample" type="button" class="btn btn-outline-secondary">Download Sample CSV</button>
+        </div>
+    </form>
+
+    <div id="resultArea" class="mt-4" style="display: none;">
+        <h5>Results</h5>
+        <div id="summaryBox" class="mb-2"></div>
+        <div>
+            <h6>Audit log</h6>
+            <pre id="auditLog" style="max-height:300px; overflow:auto; background:#f8f9fa; padding:10px; border-radius:6px;"></pre>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== "") {
+        const cookies = document.cookie.split(";");
+        for (let c of cookies) {
+            const cookie = c.trim();
+            if (cookie.substring(0, name.length + 1) === (name + "=")) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+const CSRFTOKEN = getCookie("csrftoken");
+
+document.getElementById('priceForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const fileInput = document.getElementById('fileInput');
+    if (!fileInput.files.length) {
+        Swal.fire('Select CSV', 'Please choose a CSV file to upload.', 'warning');
+        return;
+    }
+
+    const file = fileInput.files[0];
+    const form = new FormData();
+    form.append('file', file);
+
+    const uploadBtn = document.getElementById('uploadBtn');
+    uploadBtn.disabled = true;
+    uploadBtn.textContent = 'Uploading...';
+
+    try {
+        const res = await fetch("{% url 'inventory:price_update' %}", {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': CSRFTOKEN,
+                'X-Requested-With': 'XMLHttpRequest'
+            },
+            body: form
+        });
+
+        if (!res.ok) {
+            const text = await res.text();
+            let message = 'Server error';
+            try {
+                const json = JSON.parse(text);
+                message = json.message || JSON.stringify(json);
+            } catch (err) {
+                message = text.slice(0, 300);
+            }
+            throw new Error(message);
+        }
+
+        const data = await res.json();
+        if (!data.success) {
+            throw new Error(data.message || 'Unknown error');
+        }
+
+        // show results
+        const results = data.results;
+        const summary = results.summary;
+        const audit = results.audit_lines || [];
+
+        document.getElementById('resultArea').style.display = 'block';
+        document.getElementById('summaryBox').innerHTML =
+            `<div class="mb-2"><strong>Updated:</strong> ${summary.updated} &nbsp; <strong>Not found:</strong> ${summary.not_found}</div>
+             ${summary.errors.length ? `<div><strong>Errors:</strong><ul>${summary.errors.map(e=>`<li>${e}</li>`).join('')}</ul></div>` : ''}`;
+
+        document.getElementById('auditLog').textContent = audit.join("\n") || "(no changes made)";
+
+        Swal.fire('Done', 'Prices updated successfully', 'success');
+    } catch (err) {
+        console.error(err);
+        Swal.fire('Error', err.message || 'Could not update prices', 'error');
+    } finally {
+        uploadBtn.disabled = false;
+        uploadBtn.textContent = 'Upload & Update';
+    }
+});
+
+document.getElementById('downloadSample').addEventListener('click', () => {
+    const sample = "sku,price\nSKU-7F92A3C1,9.50\nSKU-AAAA1111,14.00\n";
+    const blob = new Blob([sample], {type: 'text/csv'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'price-sample.csv';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+});
+</script>
+{% endblock %}

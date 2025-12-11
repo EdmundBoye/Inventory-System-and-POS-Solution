@@ -1,0 +1,48 @@
+{% extends "inventory/base.html" %}
+{% block content %}
+<div class="container mt-4">
+    <h2>Create User</h2>
+
+    <form method="POST" action="{% url 'inventory:owner_create_user' %}">
+        {% csrf_token %}
+
+        <div class="mb-3">
+            <label>Username</label>
+            <input name="username" class="form-control" required>
+        </div>
+
+        <div class="mb-3">
+            <label>Email</label>
+            <input name="email" class="form-control">
+        </div>
+
+        <div class="mb-3">
+            <label>Password</label>
+            <input name="password" type="password" class="form-control" required>
+        </div>
+
+        <div class="mb-3">
+            <label>Role</label>
+            <select name="role" class="form-select">
+                <option value="cashier">Cashier</option>
+                <option value="manager">Manager</option>
+                <option value="owner">Owner</option>
+            </select>
+        </div>
+
+        <div class="mb-3">
+            <label>Assign Stores</label>
+            <select class="form-select" name="store_ids" multiple size="5">
+                {% for store in stores %}
+                <option value="{{ store.id }}">{{ store.name }}</option>
+                {% endfor %}
+            </select>
+            <div class="form-text">
+        Hold <strong>CTRL</strong> (Windows) or <strong>CMD</strong> (Mac) to select multiple stores.
+    </div>
+        </div>
+
+        <button class="btn btn-primary">Create User</button>
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,149 @@
+{% extends "inventory/base_auth.html" %} {% block content %}
+<style>
+  body {
+    background: #f2f4f7;
+    font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+
+  .login-wrapper {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 85vh;
+    padding: 20px;
+  }
+
+  .login-card {
+    width: 100%;
+    max-width: 430px;
+    background: #ffffff;
+    padding: 40px 35px;
+    border-radius: 14px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+    animation: fadeIn 0.5s;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .login-logo {
+    display: block;
+    text-align: center;
+    font-size: 32px;
+    font-weight: 700;
+    margin-bottom: 20px;
+    color: #007bff;
+    letter-spacing: -1px;
+  }
+
+  .login-card h2 {
+    text-align: center;
+    margin-bottom: 25px;
+    font-weight: 600;
+    color: #333;
+  }
+
+  .login-input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 14px 15px;
+    border-radius: 8px;
+    border: 1px solid #d0d7de;
+    margin-bottom: 25px;
+    font-size: 15px;
+    transition: 0.2s;
+    margin-left: 0;
+    margin-right: 0;
+  }
+
+  .login-input:focus {
+    border-color: #007bff;
+    outline: none;
+    box-shadow: 0 0 4px rgba(0, 123, 255, 0.3);
+  }
+
+  .btn-login {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 14px;
+    background: #007bff;
+    color: white;
+    border: none;
+    font-size: 16px;
+    font-weight: 600;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: 0.2s;
+  }
+
+  .btn-login:hover {
+    background: #0062d1;
+  }
+
+  .error-message {
+    background: #ffdddd;
+    border-left: 4px solid #ff4444;
+    color: #b30000;
+    padding: 10px;
+    border-radius: 6px;
+    margin-bottom: 20px;
+    font-size: 14px;
+  }
+  .signup-link {
+    color: #007bff;
+    font-weight: 600;
+    text-decoration: none;    /* remove underline */
+}
+
+.signup-link:hover {
+    text-decoration: underline; /* show underline on hover */
+}
+</style>
+
+<div class="login-wrapper">
+  <div class="login-card">
+    <div class="login-logo">Retail POS</div>
+
+    <h2>Welcome, Sign In</h2>
+
+    {% if error %}
+    <div class="error-message">{{ error }}</div>
+    {% endif %}
+
+    <form method="post" action="">
+      {% csrf_token %}
+
+      <input
+        type="text"
+        name="username"
+        class="login-input"
+        placeholder="Username"
+        required
+      />
+      <input
+        type="password"
+        name="password"
+        class="login-input"
+        placeholder="Password"
+        required
+      />
+
+      <button class="btn-login">Login</button>
+      <p style="text-align:center; margin-top: 15px">
+        Don't have an account?
+        <a href="{% url 'signup' %}" style="color: #007bff; font-weight: 600" class="signup-link"
+          >Create one</a
+        >
+      </p>
+    </form>
+  </div>
+</div>
+{% endblock %}
