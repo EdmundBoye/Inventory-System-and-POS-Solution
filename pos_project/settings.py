@@ -49,10 +49,10 @@ WSGI_APPLICATION = 'pos_project.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'pos_db',
-        'USER': 'root',
+        'NAME': 'Edmund131$default',
+        'USER': 'Edmund131',
         'PASSWORD': 'Patike211$',
-        'HOST': 'localhost',
+        'HOST': 'Edmund131.mysql.pythonanywhere-services.com',
         'PORT': '3306',
         'OPTIONS': {
             'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
